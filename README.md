@@ -23,6 +23,8 @@ pip install --editable .
 
 ## Usage examples
 
+Generate a personal access token to use from: Account Settings -> Security
+
 ```bash
 # Search for user by string
 mmquery --host mattermost.example.com --token 123abcdfeg user --term example
