@@ -19,7 +19,7 @@ import requests
 
 import click
 import tabulate
-from mattermostdriver import Driver
+from mattermostdriver import Driver, exceptions
 from mmquery import abstract
 
 logging.basicConfig(level=logging.DEBUG,
@@ -77,7 +77,10 @@ def cli(ctx, host, token, port, config):
         sys.exit(1)
 
     connect = Driver({'url': host, 'token': token, 'port': port})
-    connect.login()
+    try:
+        connect.login()
+    except exceptions.NoAccessTokenProvided:
+        sys.exit('No or invalid Access Token.')
     ctx.obj = Config(connect)
     ctx.obj.set_config('host', host)
     ctx.obj.set_config('token', token)
