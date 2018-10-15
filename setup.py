@@ -23,6 +23,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        mmquery=mmquery.main:cli
+        mmquery=mmquery.mmquery:cli
     ''',
 )
