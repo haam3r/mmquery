@@ -204,11 +204,11 @@ def get_members(ctx, team):
 
 @cli.command()
 @click.option('--print', is_flag=True, help='Print emails instead of sending. For debugging.')
-@click.option('--managers', default='managers.json', type=click.Path(), help='Path to managers.json file')
-@click.option('--team', type=str, help='Team for which to generate reports')
+@click.option('--managers', default='managers.json', required=True, type=click.Path(), help='Path to managers.json file')
+@click.option('--team', type=str, required=True, help='Team for which to generate reports')
 @click.option('--smtp-host', '-s', type=str, help='SMTP server address')
 @click.option('--smtp-port', default=25, type=str, help='SMTP server port')
-@click.option('--template', default='message.txt', type=click.Path(), help='Message template file')
+@click.option('--template', default='message.txt', required=True, type=click.Path(), help='Message template file')
 @pass_conf
 def report(ctx, print, managers, team, smtp_host, smtp_port, template):
     '''
@@ -266,8 +266,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template):
                                               MEM_COUNT=len(values['people']),
                                               DOMAIN= ';'.join(values['domains']))
         msg['From'] = 'mm@cert.ee'
-        #msg['To'] = manager
-        msg['To'] = 'andres@cert.ee'
+        msg['To'] = manager
         msg['Subject'] = 'CERT-EE MatterMost user reporting'
         msg.attach(MIMEText(message, 'plain'))
         if print:
