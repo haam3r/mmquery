@@ -40,11 +40,11 @@ pass_conf = click.make_pass_decorator(Config)
 
 
 @click.group()
-@click.option('--host', '-h', type=str, required=True, help='Hostname of MatterMost server')
-@click.option('--token', '-t', type=str, required=True, help='Your personal access token')
+@click.option('--host', '-h', type=str, help='Hostname of MatterMost server')
+@click.option('--token', '-t', type=str, help='Your personal access token')
 @click.option('--port', '-p', type=int, default=443, help='Which port to use. Default 443')
 @click.option('--config', '-c', type=click.Path(), help='Path to config file')
-@click.version_option('1.0')
+@click.version_option()
 @click.pass_context
 def cli(ctx, host, token, port, config):
 
@@ -160,7 +160,9 @@ def members(ctx, team):
     '''
     Get members of a team. NB! Will return only active users
     '''
-    return get_members(ctx, team)
+    members = get_members(ctx, team)
+    for member in members.values():
+        click.echo('{0}: {1}'.format(member['email'], member['nickname']))
 
 
 def get_members(ctx, team):
@@ -206,12 +208,12 @@ def get_members(ctx, team):
 @click.option('--print', is_flag=True, help='Print emails instead of sending. For debugging.')
 @click.option('--managers', default='managers.json', required=True, type=click.Path(), help='Path to managers.json file')
 @click.option('--team', type=str, required=True, help='Team for which to generate reports')
-@click.option('--smtp-host', '-s', type=str, help='SMTP server address')
+@click.option('--smtp-host', '-s', type=str, default='localhost', help='SMTP server address. Default is localhost')
 @click.option('--smtp-port', default=25, type=str, help='SMTP server port. Default is 25')
 @click.option('--template', default='message.txt', required=True, type=click.Path(), help='Message template file')
-@click.option('--subject', required=True, type=str, help='Message subject')
-@click.option('--admin', required=True, type=str, help='Admin email i.e. who gets report for user without a manager')
-@click.option('--source', required=True, type=str, help='From address field')
+@click.option('--subject', type=str, required=True, help='Message subject')
+@click.option('--admin', type=str, required=True, help='Admin email i.e. who gets report for user without a manager')
+@click.option('--source', type=str, required=True, help='From address field')
 @pass_conf
 def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, admin, source):
     '''
@@ -246,6 +248,12 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
                 count += 1
 
     logging.info('Total members: {0} and parsed count: {1}'.format(len(teammembers), count))
+
+    # Maybe the specified admin is user is not a manager for any domains
+    if admin not in reporting:
+        reporting[admin] = { 'name': admin.split('@')[0],
+                             'domains': '',
+                             'people': {} }
 
     # Alert admin about users who will not be included in any report
     for user, params in teammembers.items():

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='mmquery',
-    version='1.0',
+    version='0.2',
     author="haam3r",
     description="CLI utility to query MatterMost API",
     long_description=long_description,
