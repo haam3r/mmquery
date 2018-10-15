@@ -43,7 +43,7 @@ pass_conf = click.make_pass_decorator(Config)
 @click.option('--host', '-h', type=str, help='Hostname of MatterMost server')
 @click.option('--token', '-t', type=str, help='Your personal access token')
 @click.option('--port', '-p', type=int, default=443, help='Which port to use. Default 443')
-@click.option('--config', '-c', type=click.Path(), help='Path to config file')
+@click.option('--config', '-c', type=click.Path(), help='Path to config file for host, port and token')
 @click.version_option()
 @click.pass_context
 def cli(ctx, host, token, port, config):
@@ -59,11 +59,17 @@ def cli(ctx, host, token, port, config):
             port = int(settings['Default']['port'])
 
     if not host:
-        raise ValueError('No host specified')
+        click.echo('Missing parameter `--host/-h`.', err=True)
+        click.echo(cli.get_help(ctx))
+        sys.exit(1)
     if not port:
-        raise ValueError('No port specified')
+        click.echo('Missing parameter `--port/-p`.', err=True)
+        click.echo(cli.get_help(ctx))
+        sys.exit(1)
     if not token:
-        raise ValueError('No token given')
+        click.echo('Missing parameter `--token/-t`.', err=True)
+        click.echo(cli.get_help(ctx))
+        sys.exit(1)
     
     connect = Driver({'url': host, 'token': token, 'port': port})
     connect.login()
@@ -71,7 +77,6 @@ def cli(ctx, host, token, port, config):
     ctx.obj.set_config('host', host)
     ctx.obj.set_config('token', token)
     ctx.obj.set_config('port', port)
-    #ctx.obj.set_config('show_default', True)
     if config:
         ctx.obj.set_config('settings', settings._sections)
 
