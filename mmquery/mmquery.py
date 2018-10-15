@@ -249,7 +249,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
 
     logging.info('Total members: {0} and parsed count: {1}'.format(len(teammembers), count))
 
-    # Maybe the specified admin is user is not a manager for any domains
+    # Maybe the specified admin is not a manager for any domains
     if admin not in reporting:
         reporting[admin] = { 'name': admin.split('@')[0],
                              'domains': '',
