@@ -209,8 +209,11 @@ def get_members(ctx, team):
 @click.option('--smtp-host', '-s', type=str, help='SMTP server address')
 @click.option('--smtp-port', default=25, type=str, help='SMTP server port. Default is 25')
 @click.option('--template', default='message.txt', required=True, type=click.Path(), help='Message template file')
+@click.option('--subject', required=True, type=str, help='Message subject')
+@click.option('--admin', required=True, type=str, help='Admin email i.e. who gets report for user without a manager')
+@click.option('--source', required=True, type=str, help='From address field')
 @pass_conf
-def report(ctx, print, managers, team, smtp_host, smtp_port, template):
+def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, admin, source):
     '''
     Send user audit reports to team managers
     '''
@@ -248,7 +251,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template):
     for user, params in teammembers.items():
         if not params['parsed']:
             click.echo(params['email'])
-            reporting['andres@cert.ee']['people'][params['email']] = params['nickname']
+            reporting[admin]['people'][params['email']] = params['nickname']
 
     for manager, values in reporting.items():
         msg = MIMEMultipart()
@@ -265,9 +268,9 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template):
                                               USERS=users,
                                               MEM_COUNT=len(values['people']),
                                               DOMAIN= ';'.join(values['domains']))
-        msg['From'] = 'mm@cert.ee'
+        msg['From'] = source
         msg['To'] = manager
-        msg['Subject'] = 'CERT-EE MatterMost user reporting'
+        msg['Subject'] = subject
         msg.attach(MIMEText(message, 'plain'))
         if print:
             click.echo(msg)
