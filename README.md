@@ -39,3 +39,14 @@ mmquery --host mattermost.example.com --token 123abcdfeg members --team example
 # Send user audit reports per email domain(s)
 mmquery --host mattermost.example.com --token 123abcdfeg report --managers managers.json --template message.txt --smtp-host mail.example.com
 ```
+
+## Example config file
+
+You can also use a config file to store the common config parameters. An example:
+
+```bash
+[Default]
+host = mm.example.com
+port = 443
+token = 23abcdfeg
+```
