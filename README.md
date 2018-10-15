@@ -6,9 +6,7 @@ A command line utility for querying the MatterMost API for various auditing or r
 
 ```bash
 apt install python3-pip
-git clone https://github.com/haam3r/mmquery.git
-cd mmquery
-pip install .
+pip3 install git+https://github.com/haam3r/mmquery.git
 ```
 
 ## Install with virtualenv
@@ -34,4 +32,10 @@ mmquery --host mattermost.example.com --token 123abcdfeg posts --channel example
 
 # Export posts from channel, but also dump files from channel to current working directory
 mmquery --host mattermost.example.com --token 123abcdfeg posts --channel example --team team-name --filedump
+
+# Get members of a team
+mmquery --host mattermost.example.com --token 123abcdfeg members --team example
+
+# Send user audit reports per email domain(s)
+mmquery --host mattermost.example.com --token 123abcdfeg report --managers managers.json --template message.txt --smtp-host mail.example.com
 ```
