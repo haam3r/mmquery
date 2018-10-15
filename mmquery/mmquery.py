@@ -40,9 +40,9 @@ pass_conf = click.make_pass_decorator(Config)
 
 
 @click.group()
-@click.option('--host', '-h', type=str, help='Hostname of MatterMost server')
-@click.option('--token', '-t', type=str, help='Your personal access token')
-@click.option('--port', '-p', type=int, help='Which port to use. Default 443')
+@click.option('--host', '-h', type=str, required=True, help='Hostname of MatterMost server')
+@click.option('--token', '-t', type=str, required=True, help='Your personal access token')
+@click.option('--port', '-p', type=int, default=443, help='Which port to use. Default 443')
 @click.option('--config', '-c', type=click.Path(), help='Path to config file')
 @click.version_option('1.0')
 @click.pass_context
@@ -77,8 +77,8 @@ def cli(ctx, host, token, port, config):
 
 
 @cli.command()
-@click.option('--channel', help='Name of channel')
-@click.option('--team', help='Name of channel')
+@click.option('--channel', required=True, help='Name of channel')
+@click.option('--team', required=True, help='Name of channel')
 @click.option('--filedump', is_flag=True, help='Also download posted files to current working directory')
 @pass_conf
 def posts(ctx, channel, team, filedump):
@@ -154,7 +154,7 @@ def user(ctx, term):
 
 
 @cli.command()
-@click.option('--team', help='Name of team')
+@click.option('--team', required=True, help='Name of team')
 @pass_conf
 def members(ctx, team):
     '''
