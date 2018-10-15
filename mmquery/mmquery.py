@@ -207,7 +207,7 @@ def get_members(ctx, team):
 @click.option('--managers', default='managers.json', required=True, type=click.Path(), help='Path to managers.json file')
 @click.option('--team', type=str, required=True, help='Team for which to generate reports')
 @click.option('--smtp-host', '-s', type=str, help='SMTP server address')
-@click.option('--smtp-port', default=25, type=str, help='SMTP server port')
+@click.option('--smtp-port', default=25, type=str, help='SMTP server port. Default is 25')
 @click.option('--template', default='message.txt', required=True, type=click.Path(), help='Message template file')
 @pass_conf
 def report(ctx, print, managers, team, smtp_host, smtp_port, template):
