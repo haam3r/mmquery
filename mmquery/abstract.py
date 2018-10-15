@@ -1,4 +1,5 @@
 import datetime
+from string import Template
 
 def convert_time(time):
     '''
@@ -43,3 +44,12 @@ def get_nickname(self, id, full=False):
         return user['username']
     
     return user['nickname']
+
+
+def read_template(filename):
+    '''
+    Get email template file
+    '''
+    with open(filename, 'r', encoding='utf-8') as template_file:
+        template_file_content = template_file.read()
+    return Template(template_file_content)
