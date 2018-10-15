@@ -47,6 +47,9 @@ pass_conf = click.make_pass_decorator(Config)
 @click.version_option('1.0')
 @click.pass_context
 def cli(ctx, host, token, port):
+    '''
+    Main entry point for command line
+    '''
     connect = Driver({'url': host, 'token': token, 'port': port})
     connect.login()
     ctx.obj = Config(connect)
