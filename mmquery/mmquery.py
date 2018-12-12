@@ -38,6 +38,7 @@ class Config(object):
     def __repr__(self):
         return '<Config %r>' % self.connect
 
+
 pass_conf = click.make_pass_decorator(Config)
 
 
@@ -153,7 +154,7 @@ def posts(ctx, channel, team, filedump):
             with open(metadata['name'], 'wb') as f:
                 f.write(file.content)
 
-    click.echo('Total number of messages: {}'.format(chan['total_msg_count']) )
+    click.echo('Total number of messages: {}'.format(chan['total_msg_count']))
 
 
 @cli.command()
@@ -271,9 +272,9 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
 
     count = 0
     for manager, data in managers.items():
-        reporting[manager] = { 'name': data['name'],
-                                'domains': data['domain'],
-                                'people': {} }
+        reporting[manager] = {'name': data['name'],
+                              'domains': data['domain'],
+                              'people': {}}
 
         for user, params in teammembers.items():
             dom = params['email'].split('@')[1]
@@ -286,9 +287,9 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
 
     # Maybe the specified admin is not a manager for any domains
     if admin not in reporting:
-        reporting[admin] = { 'name': admin.split('@')[0],
-                             'domains': '',
-                             'people': {} }
+        reporting[admin] = {'name': admin.split('@')[0],
+                            'domains': '',
+                            'people': {}}
 
     # Alert admin about users who will not be included in any report
     for user, params in teammembers.items():
@@ -310,7 +311,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
         message = message_template.substitute(MANAGER_NAME=values['name'],
                                               USERS=users,
                                               MEM_COUNT=len(values['people']),
-                                              DOMAIN= ';'.join(values['domains']))
+                                              DOMAIN=';'.join(values['domains']))
         msg['From'] = source
         msg['To'] = manager
         msg['Subject'] = subject

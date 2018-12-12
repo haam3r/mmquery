@@ -1,6 +1,7 @@
 import datetime
 from string import Template
 
+
 def convert_time(time):
     '''
     Convert from milliseconds since Unix epoch
@@ -39,10 +40,10 @@ def get_nickname(self, id, full=False):
 
     if full:
         return user
-    
+
     if not user['nickname']:
         return user['username']
-    
+
     return user['nickname']
 
 
