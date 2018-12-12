@@ -6,19 +6,21 @@ Allows for searching a user by the username.
 Exporting posts from a channel, optionally also export files from channel
 '''
 
-import sys
-import logging
-import math
 import configparser
 import json
-import requests
+import logging
+import math
 import smtplib
-import tabulate
-import click
-from mmquery import abstract
+import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+import requests
+
+import click
+import tabulate
 from mattermostdriver import Driver
+from mmquery import abstract
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(message)s',
