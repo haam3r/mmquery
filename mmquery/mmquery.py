@@ -124,30 +124,31 @@ def posts(ctx, channel, team, filedump):
         full = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'per_page': chan['total_msg_count']})
 
     # Print messages in correct order and resolve user id-s to nickname or username
-    for message in reversed(full['order']):
-        time = abstract.convert_time(full['posts'][message]['create_at'])
+    with click.progressbar(reversed(full['order']), label='Writing messages') as full:
+        for message in reversed(full['order']):
+            time = abstract.convert_time(full['posts'][message]['create_at'])
 
-        if full['posts'][message]['user_id'] in ctx.config:
-            nick = ctx.config[full['posts'][message]['user_id']]
-        else:
-            try:
-                nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
-            except requests.exceptions.HTTPError as exc:
-                if exc.response.status_code == 404:
-                    print('Team %r not found.' % team, file=sys.stderr)
-                else:
-                    print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
-                return
-            # Let's store id and nickname pairs locally to reduce API calls
-            ctx.config[full['posts'][message]['user_id']] = nick
+            if full['posts'][message]['user_id'] in ctx.config:
+                nick = ctx.config[full['posts'][message]['user_id']]
+            else:
+                try:
+                    nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
+                except requests.exceptions.HTTPError as exc:
+                    if exc.response.status_code == 404:
+                        print('Team %r not found.' % team, file=sys.stderr)
+                    else:
+                        print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+                    return
+                # Let's store id and nickname pairs locally to reduce API calls
+                ctx.config[full['posts'][message]['user_id']] = nick
 
-        click.echo('{nick} at {time} said: {msg}'
-                    .format(nick=nick,
-                            time=time,
-                            msg=full['posts'][message]['message']))
+            click.echo('{nick} at {time} said: {msg}'
+                        .format(nick=nick,
+                                time=time,
+                                msg=full['posts'][message]['message']))
 
-        if 'file_ids' in full['posts'][message]:
-            file_ids.extend(full['posts'][message]['file_ids'])
+            if 'file_ids' in full['posts'][message]:
+                file_ids.extend(full['posts'][message]['file_ids'])
 
     # If --filedump specified then download files
     if filedump:
@@ -230,13 +231,14 @@ def get_members(ctx, team):
     count = 0
     table = []
     keys_to_use = ['username', 'nickname', 'first_name', 'last_name', 'email']
-    for member in full:
-        userdata = abstract.get_nickname(ctx.connect, member['user_id'], full=True)
-        if userdata['delete_at'] == 0:
-            count += 1
-            table.append({k: userdata[k] for k in keys_to_use})
-        else:
-            logging.info('Found inactive user: {0}'.format(userdata['email']))
+    with click.progressbar(full, label='Resolving nicknames') as full:
+        for member in full:
+            userdata = abstract.get_nickname(ctx.connect, member['user_id'], full=True)
+            if userdata['delete_at'] == 0:
+                count += 1
+                table.append({k: userdata[k] for k in keys_to_use})
+            else:
+                logging.info('Found inactive user: {0}'.format(userdata['email']))
 
     logging.debug('Got nickname for: {}'.format(count))
 
