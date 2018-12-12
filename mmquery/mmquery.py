@@ -6,17 +6,21 @@ Allows for searching a user by the username.
 Exporting posts from a channel, optionally also export files from channel
 '''
 
-import sys
-import logging
-import math
 import configparser
 import json
+import logging
+import math
 import smtplib
-import click
-from mmquery import abstract
+import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from mattermostdriver import Driver
+
+import requests
+
+import click
+import tabulate
+from mattermostdriver import Driver, exceptions
+from mmquery import abstract
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(message)s',
@@ -35,6 +39,7 @@ class Config(object):
 
     def __repr__(self):
         return '<Config %r>' % self.connect
+
 
 pass_conf = click.make_pass_decorator(Config)
 
@@ -70,9 +75,12 @@ def cli(ctx, host, token, port, config):
         click.echo('Missing parameter `--token/-t`.', err=True)
         click.echo(cli.get_help(ctx))
         sys.exit(1)
-    
+
     connect = Driver({'url': host, 'token': token, 'port': port})
-    connect.login()
+    try:
+        connect.login()
+    except exceptions.NoAccessTokenProvided:
+        sys.exit('No or invalid Access Token.')
     ctx.obj = Config(connect)
     ctx.obj.set_config('host', host)
     ctx.obj.set_config('token', token)
@@ -90,10 +98,17 @@ def posts(ctx, channel, team, filedump):
     '''
     Get posts from channel by channel name
     '''
-    
+
     full = {}
     file_ids = []
-    chan = abstract.get_channel(self=ctx.connect, name=channel, team=team)
+    try:
+        chan = abstract.get_channel(self=ctx.connect, name=channel, team=team)
+    except requests.exceptions.HTTPError as exc:
+        if exc.response.status_code == 404:
+            print('Team %r not found.' % team, file=sys.stderr)
+        else:
+            print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+        return
     # Paginate over results pages if needed
     if chan['total_msg_count'] > 200:
         pages = math.ceil(chan['total_msg_count']/200)
@@ -107,7 +122,7 @@ def posts(ctx, channel, team, filedump):
                 full['posts'] = posts['posts']
     else:
         full = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'per_page': chan['total_msg_count']})
-    
+
     # Print messages in correct order and resolve user id-s to nickname or username
     for message in reversed(full['order']):
         time = abstract.convert_time(full['posts'][message]['create_at'])
@@ -115,18 +130,25 @@ def posts(ctx, channel, team, filedump):
         if full['posts'][message]['user_id'] in ctx.config:
             nick = ctx.config[full['posts'][message]['user_id']]
         else:
-            nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
+            try:
+                nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
+            except requests.exceptions.HTTPError as exc:
+                if exc.response.status_code == 404:
+                    print('Team %r not found.' % team, file=sys.stderr)
+                else:
+                    print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+                return
             # Let's store id and nickname pairs locally to reduce API calls
             ctx.config[full['posts'][message]['user_id']] = nick
-        
+
         click.echo('{nick} at {time} said: {msg}'
                     .format(nick=nick,
                             time=time,
                             msg=full['posts'][message]['message']))
-        
+
         if 'file_ids' in full['posts'][message]:
             file_ids.extend(full['posts'][message]['file_ids'])
-    
+
     # If --filedump specified then download files
     if filedump:
         for id in file_ids:
@@ -136,8 +158,8 @@ def posts(ctx, channel, team, filedump):
             click.echo('Downloading {}'.format(file_name))
             with open(metadata['name'], 'wb') as f:
                 f.write(file.content)
-    
-    click.echo('Total number of messages: {}'.format(chan['total_msg_count']) )
+
+    click.echo('Total number of messages: {}'.format(chan['total_msg_count']))
 
 
 @cli.command()
@@ -149,7 +171,9 @@ def user(ctx, term):
     '''
 
     result = ctx.connect.users.search_users(options={'term': term})
+    click.echo('Found %d users matching the query.' % len(result))
     for user in result:
+        click.echo()
         for key, value in user.items():
             try:
                 time = abstract.convert_time(value)
@@ -177,11 +201,19 @@ def get_members(ctx, team):
     '''
 
     full = []
-    team_id = abstract.get_team(ctx.connect, team)
+    try:
+        team_id = abstract.get_team(ctx.connect, team)
+    except requests.exceptions.HTTPError as exc:
+        if exc.response.status_code == 404:
+            print('Team %r not found.' % team, file=sys.stderr)
+        else:
+            print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+        return
+    click.echo('Team info: %r' % team)
     team_stats = ctx.connect.teams.get_team_stats(team_id['id'])
     logging.info('{0} active members from {1} total members'.format(team_stats['active_member_count'], team_stats['total_member_count']))
     members = {}
-    
+
     # Paginate over results pages if needed
     if team_stats['total_member_count'] > 200:
         pages = math.ceil(team_stats['total_member_count']/100)
@@ -196,15 +228,19 @@ def get_members(ctx, team):
         full = results = ctx.connect.teams.get_team_members(team_id['id'], params={'per_page': 200})
 
     count = 0
+    table = []
+    keys_to_use = ['username', 'nickname', 'first_name', 'last_name', 'email']
     for member in full:
         userdata = abstract.get_nickname(ctx.connect, member['user_id'], full=True)
         if userdata['delete_at'] == 0:
             count += 1
-            members[member['user_id']] = userdata
+            table.append({k: userdata[k] for k in keys_to_use})
         else:
             logging.info('Found inactive user: {0}'.format(userdata['email']))
-    
+
     logging.debug('Got nickname for: {}'.format(count))
+
+    click.echo(tabulate.tabulate(table, headers='keys', tablefmt='psql'))
 
     return members
 
@@ -238,12 +274,12 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
     # This way, if a user does not get a manager we can alert the admin about it.
     for user, params in teammembers.items():
         params['parsed'] = False
-    
+
     count = 0
     for manager, data in managers.items():
-        reporting[manager] = { 'name': data['name'],
-                                'domains': data['domain'],
-                                'people': {} }
+        reporting[manager] = {'name': data['name'],
+                              'domains': data['domain'],
+                              'people': {}}
 
         for user, params in teammembers.items():
             dom = params['email'].split('@')[1]
@@ -256,9 +292,9 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
 
     # Maybe the specified admin is not a manager for any domains
     if admin not in reporting:
-        reporting[admin] = { 'name': admin.split('@')[0],
-                             'domains': '',
-                             'people': {} }
+        reporting[admin] = {'name': admin.split('@')[0],
+                            'domains': '',
+                            'people': {}}
 
     # Alert admin about users who will not be included in any report
     for user, params in teammembers.items():
@@ -280,7 +316,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
         message = message_template.substitute(MANAGER_NAME=values['name'],
                                               USERS=users,
                                               MEM_COUNT=len(values['people']),
-                                              DOMAIN= ';'.join(values['domains']))
+                                              DOMAIN=';'.join(values['domains']))
         msg['From'] = source
         msg['To'] = manager
         msg['Subject'] = subject
@@ -290,10 +326,9 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
         else:
             click.echo('Sending message to: {0}'.format(manager))
             smtp.send_message(msg)
-        
+
         del msg
 
     if not print:
         click.echo('Quitting SMTP connection. All done.')
         smtp.quit()
- 

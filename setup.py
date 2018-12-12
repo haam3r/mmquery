@@ -20,6 +20,7 @@ setup(
     install_requires=[
         'Click',
         'mattermostdriver',
+        'tabulate',
     ],
     entry_points='''
         [console_scripts]
