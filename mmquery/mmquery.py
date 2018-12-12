@@ -105,9 +105,9 @@ def posts(ctx, channel, team, filedump):
         chan = abstract.get_channel(self=ctx.connect, name=channel, team=team)
     except requests.exceptions.HTTPError as exc:
         if exc.response.status_code == 404:
-            print('Team %r not found.' % team, file=sys.stderr)
+            click.echo('Channel %r not found.' % chan, file=sys.stderr)
         else:
-            print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+            click.echo('Error getting channel, got status code %d.' % exc.response.status_code, file=sys.stderr)
         return
     # Paginate over results pages if needed
     if chan['total_msg_count'] > 200:
@@ -135,9 +135,9 @@ def posts(ctx, channel, team, filedump):
                     nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
                 except requests.exceptions.HTTPError as exc:
                     if exc.response.status_code == 404:
-                        print('Team %r not found.' % team, file=sys.stderr)
+                        click.echo('Nickname %r not found.' % nick, file=sys.stderr)
                     else:
-                        print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+                        click.echo('Error getting nickname, got status code %d.' % exc.response.status_code, file=sys.stderr)
                     return
                 # Let's store id and nickname pairs locally to reduce API calls
                 ctx.config[full['posts'][message]['user_id']] = nick
@@ -206,11 +206,11 @@ def get_members(ctx, team):
         team_id = abstract.get_team(ctx.connect, team)
     except requests.exceptions.HTTPError as exc:
         if exc.response.status_code == 404:
-            print('Team %r not found.' % team, file=sys.stderr)
+            click.echo('Team %r not found.' % team, file=sys.stderr)
         else:
-            print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+            click.echo('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
         return
-    click.echo('Team info: %r' % team)
+    click.echo('Team info: %r' % team_id)
     team_stats = ctx.connect.teams.get_team_stats(team_id['id'])
     logging.info('{0} active members from {1} total members'.format(team_stats['active_member_count'], team_stats['total_member_count']))
     members = {}
