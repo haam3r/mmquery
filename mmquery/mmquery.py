@@ -124,31 +124,27 @@ def posts(ctx, channel, team, filedump):
         full = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'per_page': chan['total_msg_count']})
 
     # Print messages in correct order and resolve user id-s to nickname or username
-    with click.progressbar(reversed(full['order']), label='Writing messages') as full:
-        for message in reversed(full['order']):
-            time = abstract.convert_time(full['posts'][message]['create_at'])
-
-            if full['posts'][message]['user_id'] in ctx.config:
-                nick = ctx.config[full['posts'][message]['user_id']]
-            else:
-                try:
-                    nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
-                except requests.exceptions.HTTPError as exc:
-                    if exc.response.status_code == 404:
-                        click.echo('Nickname %r not found.' % nick, file=sys.stderr)
-                    else:
-                        click.echo('Error getting nickname, got status code %d.' % exc.response.status_code, file=sys.stderr)
-                    return
-                # Let's store id and nickname pairs locally to reduce API calls
-                ctx.config[full['posts'][message]['user_id']] = nick
-
-            click.echo('{nick} at {time} said: {msg}'
-                        .format(nick=nick,
-                                time=time,
-                                msg=full['posts'][message]['message']))
-
-            if 'file_ids' in full['posts'][message]:
-                file_ids.extend(full['posts'][message]['file_ids'])
+    for message in reversed(full['order']):
+        time = abstract.convert_time(full['posts'][message]['create_at'])
+        if full['posts'][message]['user_id'] in ctx.config:
+            nick = ctx.config[full['posts'][message]['user_id']]
+        else:
+            try:
+                nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
+            except requests.exceptions.HTTPError as exc:
+                if exc.response.status_code == 404:
+                    click.echo('Nickname %r not found.' % nick, file=sys.stderr)
+                else:
+                    click.echo('Error getting nickname, got status code %d.' % exc.response.status_code, file=sys.stderr)
+                return
+            # Let's store id and nickname pairs locally to reduce API calls
+            ctx.config[full['posts'][message]['user_id']] = nick
+        click.echo('{nick} at {time} said: {msg}'
+                    .format(nick=nick,
+                            time=time,
+                            msg=full['posts'][message]['message']))
+        if 'file_ids' in full['posts'][message]:
+            file_ids.extend(full['posts'][message]['file_ids'])
 
     # If --filedump specified then download files
     if filedump:
