@@ -11,6 +11,7 @@ import logging
 import math
 import configparser
 import json
+import requests
 import smtplib
 import click
 from mmquery import abstract
@@ -70,7 +71,7 @@ def cli(ctx, host, token, port, config):
         click.echo('Missing parameter `--token/-t`.', err=True)
         click.echo(cli.get_help(ctx))
         sys.exit(1)
-    
+
     connect = Driver({'url': host, 'token': token, 'port': port})
     connect.login()
     ctx.obj = Config(connect)
@@ -90,10 +91,17 @@ def posts(ctx, channel, team, filedump):
     '''
     Get posts from channel by channel name
     '''
-    
+
     full = {}
     file_ids = []
-    chan = abstract.get_channel(self=ctx.connect, name=channel, team=team)
+    try:
+        chan = abstract.get_channel(self=ctx.connect, name=channel, team=team)
+    except requests.exceptions.HTTPError as exc:
+        if exc.response.status_code == 404:
+            print('Team %r not found.' % team, file=sys.stderr)
+        else:
+            print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+        return
     # Paginate over results pages if needed
     if chan['total_msg_count'] > 200:
         pages = math.ceil(chan['total_msg_count']/200)
@@ -107,7 +115,7 @@ def posts(ctx, channel, team, filedump):
                 full['posts'] = posts['posts']
     else:
         full = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'per_page': chan['total_msg_count']})
-    
+
     # Print messages in correct order and resolve user id-s to nickname or username
     for message in reversed(full['order']):
         time = abstract.convert_time(full['posts'][message]['create_at'])
@@ -115,18 +123,25 @@ def posts(ctx, channel, team, filedump):
         if full['posts'][message]['user_id'] in ctx.config:
             nick = ctx.config[full['posts'][message]['user_id']]
         else:
-            nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
+            try:
+                nick = abstract.get_nickname(self=ctx.connect, id=full['posts'][message]['user_id'])
+            except requests.exceptions.HTTPError as exc:
+                if exc.response.status_code == 404:
+                    print('Team %r not found.' % team, file=sys.stderr)
+                else:
+                    print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+                return
             # Let's store id and nickname pairs locally to reduce API calls
             ctx.config[full['posts'][message]['user_id']] = nick
-        
+
         click.echo('{nick} at {time} said: {msg}'
                     .format(nick=nick,
                             time=time,
                             msg=full['posts'][message]['message']))
-        
+
         if 'file_ids' in full['posts'][message]:
             file_ids.extend(full['posts'][message]['file_ids'])
-    
+
     # If --filedump specified then download files
     if filedump:
         for id in file_ids:
@@ -136,7 +151,7 @@ def posts(ctx, channel, team, filedump):
             click.echo('Downloading {}'.format(file_name))
             with open(metadata['name'], 'wb') as f:
                 f.write(file.content)
-    
+
     click.echo('Total number of messages: {}'.format(chan['total_msg_count']) )
 
 
@@ -177,11 +192,18 @@ def get_members(ctx, team):
     '''
 
     full = []
-    team_id = abstract.get_team(ctx.connect, team)
+    try:
+        team_id = abstract.get_team(ctx.connect, team)
+    except requests.exceptions.HTTPError as exc:
+        if exc.response.status_code == 404:
+            print('Team %r not found.' % team, file=sys.stderr)
+        else:
+            print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
+        return
     team_stats = ctx.connect.teams.get_team_stats(team_id['id'])
     logging.info('{0} active members from {1} total members'.format(team_stats['active_member_count'], team_stats['total_member_count']))
     members = {}
-    
+
     # Paginate over results pages if needed
     if team_stats['total_member_count'] > 200:
         pages = math.ceil(team_stats['total_member_count']/100)
@@ -203,7 +225,7 @@ def get_members(ctx, team):
             members[member['user_id']] = userdata
         else:
             logging.info('Found inactive user: {0}'.format(userdata['email']))
-    
+
     logging.debug('Got nickname for: {}'.format(count))
 
     return members
@@ -238,7 +260,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
     # This way, if a user does not get a manager we can alert the admin about it.
     for user, params in teammembers.items():
         params['parsed'] = False
-    
+
     count = 0
     for manager, data in managers.items():
         reporting[manager] = { 'name': data['name'],
@@ -290,10 +312,9 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
         else:
             click.echo('Sending message to: {0}'.format(manager))
             smtp.send_message(msg)
-        
+
         del msg
 
     if not print:
         click.echo('Quitting SMTP connection. All done.')
         smtp.quit()
- 
