@@ -13,6 +13,7 @@ import configparser
 import json
 import requests
 import smtplib
+import tabulate
 import click
 from mmquery import abstract
 from email.mime.multipart import MIMEMultipart
@@ -164,7 +165,9 @@ def user(ctx, term):
     '''
 
     result = ctx.connect.users.search_users(options={'term': term})
+    click.echo('Found %d users matching the query.' % len(result))
     for user in result:
+        click.echo()
         for key, value in user.items():
             try:
                 time = abstract.convert_time(value)
@@ -200,6 +203,7 @@ def get_members(ctx, team):
         else:
             print('Error getting team, got status code %d.' % exc.response.status_code, file=sys.stderr)
         return
+    click.echo('Team info: %r' % team)
     team_stats = ctx.connect.teams.get_team_stats(team_id['id'])
     logging.info('{0} active members from {1} total members'.format(team_stats['active_member_count'], team_stats['total_member_count']))
     members = {}
@@ -218,15 +222,19 @@ def get_members(ctx, team):
         full = results = ctx.connect.teams.get_team_members(team_id['id'], params={'per_page': 200})
 
     count = 0
+    table = []
+    keys_to_use = ['username', 'nickname', 'first_name', 'last_name', 'email']
     for member in full:
         userdata = abstract.get_nickname(ctx.connect, member['user_id'], full=True)
         if userdata['delete_at'] == 0:
             count += 1
-            members[member['user_id']] = userdata
+            table.append({k: userdata[k] for k in keys_to_use})
         else:
             logging.info('Found inactive user: {0}'.format(userdata['email']))
 
     logging.debug('Got nickname for: {}'.format(count))
+
+    click.echo(tabulate.tabulate(table, headers='keys', tablefmt='psql'))
 
     return members
 
