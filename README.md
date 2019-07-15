@@ -37,7 +37,7 @@ mmquery --host mattermost.example.com --token 123abcdfeg posts --channel example
 mmquery --host mattermost.example.com --token 123abcdfeg members --team example
 
 # Send user audit reports per email domain(s)
-mmquery --host mattermost.example.com --token 123abcdfeg report --managers managers.json --template message.txt --smtp-host mail.example.com
+mmquery --host mattermost.example.com --token 123abcdfeg report --managers managers.json --template message.txt --smtp-host mail.example.com --source mm@example.com --admin mm+noadmin@example.com [--print]
 ```
 
 ## Example config file
@@ -49,4 +49,52 @@ You can also use a config file to store the common config parameters. An example
 host = mm.example.com
 port = 443
 token = 23abcdfeg
+```
+
+## Example managers file
+
+The managers file defines admins and their associated domains. Example:
+
+```bash
+{
+  "admin@example.com": {
+    "name": "Admin Example",
+    "domain": [
+                "example.com",
+                "example.top",
+                "example.info"
+              ]
+  },
+  "manager@exampleorg.com": {
+    "name": "Org Manager",
+    "domain": [
+                  "exampleorg.com"
+                ]
+  }
+}
+```
+
+## Example massage file
+
+```bash
+Hi ${MANAGER_NAME},
+
+I'm writing you on behalf of EXAMPLE ORG regarding MatterMost chat instance.
+(Team ${TEAM_DISPLAY_NAME}, Description (${TEAM_DESCRIPTION})
+
+I have you listed as the team rep for domain(s) "${DOMAIN}".
+Please spare a minute or two and validate the users that belong to your domain.
+
+Currently, these are your ${MEM_COUNT} users:
+
+${USERS}
+
+If any of these users should no longer have access to the EXAMPLE ORG chat team, please notify me via mm@example.com.
+Additionally, for those who do not have a nickname set, please remind them to set one in their profile in format country_organization_name (cc_example_joe)
+.
+
+If you have any additional questions or comments, you can contact me directly via mm@example.com.
+
+Regards
+EXAMPLE ORG
 ```
