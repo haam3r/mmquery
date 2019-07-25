@@ -310,7 +310,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
     # Alert admin about users who will not be included in any report
     for user, params in teammembers.items():
         if not params['parsed']:
-            click.echo(params['email'])
+            click.echo('No manager defined for "{0}"'.format(params['email']))
             filtered = { rk: params[rk] for rk in reportkeys }
             reporting[admin]['table'].append(filtered)
             reporting[admin]['count'] += 1

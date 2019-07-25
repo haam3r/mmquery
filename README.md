@@ -6,7 +6,7 @@ A command line utility for querying the MatterMost API for various auditing or r
 
 ```bash
 apt install python3-pip
-pip3 install git+https://github.com/haam3r/mmquery.git
+pip3 install git+https://github.com/otmarlendl/mmquery.git
 ```
 
 ## Install with virtualenv
