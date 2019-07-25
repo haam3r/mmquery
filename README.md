@@ -1,6 +1,8 @@
 # mmquery
 
-A command line utility for querying the MatterMost API for various auditing or reporting purposes.
+A command line utility for querying the MatterMost API for various auditing or reporting purposes. 
+
+Based on https://github.com/haam3r/mmquery
 
 ## Quick setup
 
@@ -12,7 +14,7 @@ pip3 install git+https://github.com/otmarlendl/mmquery.git
 ## Install with virtualenv
 
 ```bash
-git clone https://github.com/haam3r/mmquery.git
+git clone https://github.com/otmarlendl/mmquery.git
 cd mmquery
 virtualenv -p python3 venv
 . venv/bin/activate
