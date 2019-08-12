@@ -15,6 +15,8 @@ import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from pprint import pprint
+
 import requests
 
 import click
@@ -186,7 +188,7 @@ def members(ctx, team):
     '''
     Get members of a team. NB! Will return only active users
     '''
-    members = get_members(ctx, team)
+    members, team_info = get_members(ctx, team)
     for member in members.values():
         click.echo('{0}: {1}'.format(member['email'], member['nickname']))
 
@@ -226,13 +228,19 @@ def get_members(ctx, team):
 
     count = 0
     table = []
-    keys_to_use = ['username', 'nickname', 'first_name', 'last_name', 'email']
+    keys_to_use = ['username', 'nickname', 'first_name', 'last_name', 'email', 'mfa_active']
     with click.progressbar(full, label='Resolving nicknames') as full:
         for member in full:
             userdata = abstract.get_nickname(ctx.connect, member['user_id'], full=True)
+
+            # if mfa ist not active, the key is not in the dictionary. Fix this
+            if 'mfa_active' not in userdata:
+                userdata['mfa_active'] = False
+
             if userdata['delete_at'] == 0:
                 count += 1
                 table.append({k: userdata[k] for k in keys_to_use})
+                members[userdata['email']] = {k: userdata[k] for k in keys_to_use}
             else:
                 logging.info('Found inactive user: {0}'.format(userdata['email']))
 
@@ -240,7 +248,7 @@ def get_members(ctx, team):
 
     click.echo(tabulate.tabulate(table, headers='keys', tablefmt='psql'))
 
-    return members
+    return members, team_id
 
 
 @cli.command()
@@ -259,6 +267,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
     Send user audit reports to team managers
     '''
 
+    reportkeys = ['nickname', 'email', 'mfa_active', 'username']
     reporting = {}
     managers = json.load(open(managers))
     if not print:
@@ -266,7 +275,7 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
         smtp = smtplib.SMTP(host=smtp_host, port=smtp_port)
         smtp.connect()
     message_template = abstract.read_template(template)
-    teammembers = get_members(ctx, team)
+    teammembers, teaminfo = get_members(ctx, team)
 
     # Add a parsed tracking key to every user
     # This way, if a user does not get a manager we can alert the admin about it.
@@ -277,13 +286,16 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
     for manager, data in managers.items():
         reporting[manager] = {'name': data['name'],
                               'domains': data['domain'],
-                              'people': {}}
+                              'table' : [],
+                              'count' : 0}
 
         for user, params in teammembers.items():
             dom = params['email'].split('@')[1]
             if dom in data['domain']:
-                reporting[manager]['people'][params['email']] = params['nickname']
+                filtered = { rk: params[rk] for rk in reportkeys }
+                reporting[manager]['table'].append(filtered)
                 teammembers[user].update({'parsed': True})
+                reporting[manager]['count'] += 1
                 count += 1
 
     logging.info('Total members: {0} and parsed count: {1}'.format(len(teammembers), count))
@@ -292,29 +304,33 @@ def report(ctx, print, managers, team, smtp_host, smtp_port, template, subject, 
     if admin not in reporting:
         reporting[admin] = {'name': admin.split('@')[0],
                             'domains': '',
-                            'people': {}}
+                            'table' : [],
+                            'count' : 0}
 
     # Alert admin about users who will not be included in any report
     for user, params in teammembers.items():
         if not params['parsed']:
-            click.echo(params['email'])
-            reporting[admin]['people'][params['email']] = params['nickname']
+            click.echo('No manager defined for "{0}"'.format(params['email']))
+            filtered = { rk: params[rk] for rk in reportkeys }
+            reporting[admin]['table'].append(filtered)
+            reporting[admin]['count'] += 1
 
     for manager, values in reporting.items():
         msg = MIMEMultipart()
-        users = ""
+        usertable = values['table']
 
-        if 'people' in values:
-            for email, nick in values['people'].items():
-                if not nick:
-                    users += '{0} - NO NICK\n'.format(email)
-                else:
-                    users += '{0} - {1}\n'.format(email, nick)
+        if values['count'] == 0:
+            logging.info('No user for {0}'.format(manager))
+            continue
+
+        users = tabulate.tabulate(values['table'], headers='keys', tablefmt='psql')
 
         message = message_template.substitute(MANAGER_NAME=values['name'],
                                               USERS=users,
-                                              MEM_COUNT=len(values['people']),
-                                              DOMAIN=';'.join(values['domains']))
+                                              MEM_COUNT=values['count'],
+                                              DOMAIN=', '.join(values['domains']),
+                                              TEAM_DISPLAY_NAME=teaminfo['display_name'],
+                                              TEAM_DESCRIPTION=teaminfo['description'])
         msg['From'] = source
         msg['To'] = manager
         msg['Subject'] = subject
